@@ -664,7 +664,7 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
       )
     }
         let middleSnapPoints
-    const sortedPropsSnapPints: Array<{
+    const sortedPropsMiddleSnapPints: Array<{
       val: number
       ind: number
     }> = props.middleSnapPoints
@@ -688,12 +688,12 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
       .sort(({ val: a }, { val: b }) => b - a)
     if (state && state.middleSnapPoints) {
       state.middleSnapPoints.forEach((s, i) =>
-        s.setValue(sortedPropsSnapPints[0].val - sortedPropsSnapPints[i].val)
+        s.setValue(sortedPropsMiddleSnapPints[0].val - sortedPropsMiddleSnapPints[i].val)
       )
       middleSnapPoints = state.middleSnapPoints
     } else {
-      middleSnapPoints = sortedPropsSnapPints.map(
-        p => new Value(sortedPropsSnapPints[0].val - p.val)
+      middleSnapPoints = sortedPropsMiddleSnapPints.map(
+        p => new Value(sortedPropsMiddleSnapPints[0].val - p.val)
       )
     }      
 

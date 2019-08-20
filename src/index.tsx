@@ -309,10 +309,10 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
     this.tapRef = props.innerGestureHandlerRefs[2]
     this.state = BottomSheetBehavior.getDerivedStateFromProps(props, undefined)
 
-    const { snapPoints, init } = this.state
+    const { middleSnapPoints, snapPoints, init } = this.state
     const middlesOfSnapPoints: Animated.Node<number>[] = []
-    for (let i = 1; i < (props.middleSnapPoints || snapPoints).length; i++) {
-      middlesOfSnapPoints.push(divide(add((props.middleSnapPoints || snapPoints)[i - 1], (props.middleSnapPoints || snapPoints)[i]), 2))
+    for (let i = 1; i < (middleSnapPoints || snapPoints).length; i++) {
+      middlesOfSnapPoints.push(divide(add((middleSnapPoints || snapPoints)[i - 1], (middleSnapPoints || snapPoints)[i]), 2))
     }
     const masterOffseted = new Value(init)
     // destination point is a approximation of movement if finger released
@@ -663,6 +663,39 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
         p => new Value(sortedPropsSnapPints[0].val - p.val)
       )
     }
+        let middleSnapPoints
+    const sortedPropsSnapPints: Array<{
+      val: number
+      ind: number
+    }> = props.middleSnapPoints
+      .map(
+        (
+          s: number | string,
+          i: number
+        ): {
+          val: number
+          ind: number
+        } => {
+          if (typeof s === 'number') {
+            return { val: s, ind: i }
+          } else if (typeof s === 'string') {
+            return { val: BottomSheetBehavior.renumber(s), ind: i }
+          }
+
+          throw new Error(`Invalid type for value ${s}: ${typeof s}`)
+        }
+      )
+      .sort(({ val: a }, { val: b }) => b - a)
+    if (state && state.middleSnapPoints) {
+      state.middleSnapPoints.forEach((s, i) =>
+        s.setValue(sortedPropsSnapPints[0].val - sortedPropsSnapPints[i].val)
+      )
+      middleSnapPoints = state.middleSnapPoints
+    } else {
+      middleSnapPoints = sortedPropsSnapPints.map(
+        p => new Value(sortedPropsSnapPints[0].val - p.val)
+      )
+    }      
 
     const propsToNewIndices: { [key: string]: number } = {}
     sortedPropsSnapPints.forEach(({ ind }, i) => (propsToNewIndices[ind] = i))
@@ -679,6 +712,7 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
       heightOfContent: (state && state.heightOfContent) || new Value(0),
       initSnap: sortedPropsSnapPints[0].val,
       snapPoints,
+      middleSnapPoints,
       heightOfHeader: (state && state.heightOfHeader) || 0,
     }
   }

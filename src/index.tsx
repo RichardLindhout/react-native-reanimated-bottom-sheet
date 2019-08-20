@@ -311,8 +311,8 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
 
     const { snapPoints, init } = this.state
     const middlesOfSnapPoints: Animated.Node<number>[] = []
-    for (let i = 1; i < snapPoints.length; i++) {
-      middlesOfSnapPoints.push(divide(add(snapPoints[i - 1], snapPoints[i]), 2))
+    for (let i = 1; i < (props.middleSnapPoints || snapPoints).length; i++) {
+      middlesOfSnapPoints.push(divide(add((props.middleSnapPoints || snapPoints)[i - 1], (props.middleSnapPoints || snapPoints)[i]), 2))
     }
     const masterOffseted = new Value(init)
     // destination point is a approximation of movement if finger released

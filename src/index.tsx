@@ -35,6 +35,12 @@ type Props = {
   enabledGestureInteraction?: boolean
   enabledHeaderGestureInteraction?: boolean
   enabledContentGestureInteraction?: boolean
+
+  /**
+   * Defines if bottom sheet content responds to taps. Defaults to true.
+   */
+  enabledContentTapInteraction?: boolean
+
   /**
    * If false blocks snapping using snapTo method. Defaults to true.
    */
@@ -92,6 +98,12 @@ type Props = {
   ]
 
   enabledImperativeSnapping?: boolean
+
+  onOpenStart?: () => void
+  onOpenEnd?: () => void
+  onCloseStart?: () => void
+  onCloseEnd?: () => void
+  callbackThreshold?: number
 }
 
 type State = {
@@ -163,6 +175,9 @@ const {
   decay,
   Clock,
   lessThan,
+  call,
+  lessOrEq,
+  neq,
 } = Animated
 
 function runDecay(
@@ -273,6 +288,7 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
     enabledGestureInteraction: true,
     enabledHeaderGestureInteraction: true,
     enabledContentGestureInteraction: true,
+    enabledContentTapInteraction: true,
     enabledInnerScrolling: true,
     springConfig: {},
     innerGestureHandlerRefs: [
@@ -280,6 +296,7 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
       React.createRef(),
       React.createRef(),
     ],
+    callbackThreshold: 0.01,
   }
 
   private decayClock = new Clock()
@@ -300,6 +317,10 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
   private tapRef: React.RefObject<TapGestureHandler>
   private snapPoint: Animated.Node<number>
   private Y: Animated.Node<number>
+  private onOpenStartValue: Animated.Value<number> = new Value(0)
+  private onOpenEndValue: Animated.Value<number> = new Value(0)
+  private onCloseStartValue: Animated.Value<number> = new Value(1)
+  private onCloseEndValue: Animated.Value<number> = new Value(0)
 
   constructor(props: Props) {
     super(props)
@@ -631,7 +652,7 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
     state: State | undefined
   ): State {
     let snapPoints
-    const sortedPropsSnapPints: Array<{
+    const sortedPropsSnapPoints: Array<{
       val: number
       ind: number
     }> = props.snapPoints
@@ -655,12 +676,12 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
       .sort(({ val: a }, { val: b }) => b - a)
     if (state && state.snapPoints) {
       state.snapPoints.forEach((s, i) =>
-        s.setValue(sortedPropsSnapPints[0].val - sortedPropsSnapPints[i].val)
+        s.setValue(sortedPropsSnapPoints[0].val - sortedPropsSnapPoints[i].val)
       )
       snapPoints = state.snapPoints
     } else {
-      snapPoints = sortedPropsSnapPints.map(
-        p => new Value(sortedPropsSnapPints[0].val - p.val)
+      snapPoints = sortedPropsSnapPoints.map(
+        p => new Value(sortedPropsSnapPoints[0].val - p.val)
       )
     }
         let middleSnapPoints
@@ -698,19 +719,19 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
     }      
 
     const propsToNewIndices: { [key: string]: number } = {}
-    sortedPropsSnapPints.forEach(({ ind }, i) => (propsToNewIndices[ind] = i))
+    sortedPropsSnapPoints.forEach(({ ind }, i) => (propsToNewIndices[ind] = i))
 
     const { initialSnap } = props
 
     return {
       init:
-        sortedPropsSnapPints[0].val -
-        sortedPropsSnapPints[propsToNewIndices[initialSnap]].val,
+        sortedPropsSnapPoints[0].val -
+        sortedPropsSnapPoints[propsToNewIndices[initialSnap]].val,
       propsToNewIndices,
       heightOfHeaderAnimated:
         (state && state.heightOfHeaderAnimated) || new Value(0),
       heightOfContent: (state && state.heightOfContent) || new Value(0),
-      initSnap: sortedPropsSnapPints[0].val,
+      initSnap: sortedPropsSnapPoints[0].val,
       snapPoints,
       middleSnapPoints,
       heightOfHeader: (state && state.heightOfHeader) || 0,
@@ -745,7 +766,10 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
           }}
         >
           <PanGestureHandler
-            enabled={this.props.enabledGestureInteraction && this.props.enabledHeaderGestureInteraction}
+            enabled={
+              this.props.enabledGestureInteraction &&
+              this.props.enabledHeaderGestureInteraction
+            }
             ref={this.master}
             waitFor={this.panRef}
             onGestureEvent={this.handleMasterPan}
@@ -770,7 +794,10 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
             }
           >
             <PanGestureHandler
-              enabled={this.props.enabledGestureInteraction && this.props.enabledContentGestureInteraction}
+              enabled={
+                this.props.enabledGestureInteraction &&
+                this.props.enabledContentGestureInteraction
+              }
               waitFor={this.master}
               ref={this.panRef}
               onGestureEvent={this.handlePan}
@@ -780,7 +807,11 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
               <Animated.View>
                 <TapGestureHandler
                   ref={this.tapRef}
-                  enabled={this.props.enabledGestureInteraction && this.props.enabledContentGestureInteraction}
+                  enabled={
+                    this.props.enabledGestureInteraction &&
+                    this.props.enabledContentGestureInteraction &&
+                    this.props.enabledContentTapInteraction
+                  }
                   onHandlerStateChange={this.handleTap}
                   simultaneousHandlers={this.props.simultaneousHandlers}
                 >
@@ -817,6 +848,140 @@ export default class BottomSheetBehavior extends React.Component<Props, State> {
                     )
                   )
                 )}
+              />
+            )}
+            {(this.props.onOpenStart || this.props.onCloseEnd) && (
+              <Animated.Code
+                exec={onChange(this.translateMaster, [
+                  cond(
+                    and(
+                      lessOrEq(
+                        divide(
+                          this.translateMaster,
+                          this.state.snapPoints[
+                            this.state.snapPoints.length - 1
+                          ]
+                        ),
+                        1 -
+                          (this.props.callbackThreshold
+                            ? this.props.callbackThreshold
+                            : 0.01)
+                      ),
+                      neq(this.onOpenStartValue, 1)
+                    ),
+                    [
+                      call([], () => {
+                        if (this.props.onOpenStart) this.props.onOpenStart()
+                      }),
+                      set(this.onOpenStartValue, 1),
+                      cond(
+                        defined(this.onCloseEndValue),
+                        set(this.onCloseEndValue, 0)
+                      ),
+                    ]
+                  ),
+                ])}
+              />
+            )}
+            {(this.props.onOpenEnd || this.props.onCloseStart) && (
+              <Animated.Code
+                exec={onChange(this.translateMaster, [
+                  cond(
+                    and(
+                      lessOrEq(
+                        divide(
+                          this.translateMaster,
+                          this.state.snapPoints[
+                            this.state.snapPoints.length - 1
+                          ]
+                        ),
+                        this.props.callbackThreshold
+                          ? this.props.callbackThreshold
+                          : 0.01
+                      ),
+                      neq(this.onOpenEndValue, 1)
+                    ),
+                    [
+                      call([], () => {
+                        if (this.props.onOpenEnd) this.props.onOpenEnd()
+                      }),
+                      set(this.onOpenEndValue, 1),
+                      cond(
+                        defined(this.onCloseStartValue),
+                        set(this.onCloseStartValue, 0)
+                      ),
+                    ]
+                  ),
+                ])}
+              />
+            )}
+            {(this.props.onCloseStart || this.props.onOpenEnd) && (
+              <Animated.Code
+                exec={onChange(this.translateMaster, [
+                  cond(
+                    and(
+                      greaterOrEq(
+                        divide(
+                          this.translateMaster,
+                          this.state.snapPoints[
+                            this.state.snapPoints.length - 1
+                          ]
+                        ),
+                        this.props.callbackThreshold
+                          ? this.props.callbackThreshold
+                          : 0.01
+                      ),
+                      neq(this.onCloseStartValue, 1)
+                    ),
+                    [
+                      call([], () => {
+                        if (this.props.onCloseStart) this.props.onCloseStart()
+                      }),
+                      set(this.onCloseStartValue, 1),
+                      cond(
+                        defined(this.onCloseStartValue),
+                        set(this.onOpenEndValue, 0)
+                      ),
+                    ]
+                  ),
+                ])}
+              />
+            )}
+            {(this.props.onCloseEnd || this.props.onOpenStart) && (
+              <Animated.Code
+                exec={onChange(this.translateMaster, [
+                  cond(
+                    and(
+                      greaterOrEq(
+                        divide(
+                          this.translateMaster,
+                          this.state.snapPoints[
+                            this.state.snapPoints.length - 1
+                          ]
+                        ),
+                        1 -
+                          (this.props.callbackThreshold
+                            ? this.props.callbackThreshold
+                            : 0.01)
+                      ),
+                      neq(this.onCloseEndValue, 1)
+                    ),
+                    [
+                      call([], () => {
+                        if (this.props.onCloseEnd) this.props.onCloseEnd()
+                      }),
+                      set(this.onCloseEndValue, 1),
+                      cond(
+                        defined(this.onOpenStartValue),
+                        set(this.onOpenStartValue, 0)
+                      ),
+                      cond(
+                        defined(this.onOpenEndValue),
+                        set(this.onOpenEndValue, 0)
+                      ),
+                    ]
+                  ),
+                ])}
               />
             )}
             {this.props.contentPosition && (

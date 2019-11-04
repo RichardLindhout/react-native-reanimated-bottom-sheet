@@ -33,7 +33,7 @@ If you don't use Expo, install and link [react-native-gesture-handler](https://k
 import BottomSheet from 'reanimated-bottom-sheet'
 
 class Example extends React.Component {
-  renderInner = () => (
+  renderContent = () => (
     /* render */
   )
 
@@ -46,7 +46,7 @@ class Example extends React.Component {
       <View style={styles.container}>
         <BottomSheet
           snapPoints = {[450, 300, 0]}
-          renderContent = {this.renderInner}
+          renderContent = {this.renderContent}
           renderHeader = {this.renderHeader}
         />
     </View>)
@@ -65,7 +65,9 @@ class Example extends React.Component {
 | enabledGestureInteraction | no       | `true`  | Defines if bottom sheet could be scrollable by gesture. |
 | enabledHeaderGestureInteraction | no       | `true`  | Defines if bottom sheet header could be scrollable by gesture. |
 | enabledContentGestureInteraction | no       | `true`  | Defines if bottom sheet content could be scrollable by gesture. |
+| enabledContentTapInteraction | no       | `true`  | Defines whether bottom sheet content could be tapped. |
 | enabledManualSnapping     | no       | `true`  | If `false` blocks snapping using `snapTo` method. |
+| enabledBottomClamp        | no       | `false` | If `true` block movement is clamped from bottom to minimal snappoint. |
 | enabledInnerScrolling     | no       | `true`  | Defines whether it's possible to scroll inner content of bottom sheet. |
 | callbackNode              | no       |         | `reanimated` node which holds position of bottom sheet, where `0` it the highest snap point and `1` is the lowest. |
 | contentPosition           | no       |         | `reanimated` node which holds position of bottom sheet's content (in dp) |
